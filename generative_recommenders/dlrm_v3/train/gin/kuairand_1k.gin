@@ -1,4 +1,4 @@
-batch_size = 16
+batch_size = 8
 dataset = "kuairand-1k"
 
 # model parameters
@@ -30,13 +30,13 @@ sparse_optimizer_factory_and_class.ams_grad = False
 make_train_test_dataloaders.batch_size = %batch_size
 make_train_test_dataloaders.dataset_type = %dataset
 make_train_test_dataloaders.train_split_percentage = 0.75
-make_train_test_dataloaders.new_path_prefix = "/home/linjianma"
+make_train_test_dataloaders.new_path_prefix = "./"
 make_train_test_dataloaders.num_workers = 2
 make_train_test_dataloaders.prefetch_factor = 4
 make_train_test_dataloaders.max_seq_len = 2048
 
 # train loop variables
-train_loop.num_epochs = 5
+train_loop.num_epochs = 2
 train_loop.output_trace = True
 train_loop.metric_log_frequency = 10
 

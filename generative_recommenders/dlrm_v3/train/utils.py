@@ -290,17 +290,18 @@ def make_train_test_dataloaders(
         dataset_type, new_path_prefix, max_seq_len=max_seq_len
     )
     kwargs["embedding_config"] = embedding_table_configs
-
+    print('kwargs', kwargs)
+    print('hstu_config', hstu_config)
     # Create dataset
     dataset = HammerToTorchDataset(
         dataset=dataset_class(hstu_config=hstu_config, is_inference=False, **kwargs)
     )
     total_items = dataset.dataset.get_item_count()
-
     train_size = round(train_split_percentage * total_items)
 
     train_set = torch.utils.data.Subset(dataset, range(train_size))
     test_set = torch.utils.data.Subset(dataset, range(train_size, total_items))
+    print('total_items', total_items)
 
     # Wrap dataset with dataloader
     train_dataloader = DataLoader(
@@ -335,6 +336,7 @@ def train_loop(
     metric_logger: MetricsLogger,
     device: torch.device,
     num_epochs: int,
+    eval_callback: Callable,
     num_batches: Optional[int] = None,
     output_trace: bool = False,
     metric_log_frequency: int = 1,
@@ -343,8 +345,12 @@ def train_loop(
     model = model.train()
     batch_idx: int = 0
     profiler = Profiler(rank, active=10) if output_trace else None
-
+    print('num_epochs', num_epochs)
+    print('num_batches', num_batches)
+    print('len(dataloader)', len(dataloader))
+    eval_callback()
     for _ in range(num_epochs):
+        model = model.train()
         for sample in dataloader:
             sample.to(device)
             (
@@ -366,22 +372,23 @@ def train_loop(
                 labels=mt_target_labels,
                 weights=mt_target_weights,
             )
-            if batch_idx % metric_log_frequency != 0:
+            if batch_idx % metric_log_frequency == 0:
                 metric_logger.compute_and_log(
                     additional_logs={
                         "losses": aux_losses,
                     }
                 )
             batch_idx += 1
-            if output_trace:
-                assert profiler is not None
-                profiler.step()
+            # if output_trace:
+            #     assert profiler is not None
+            #     profiler.step()
             if num_batches is not None and batch_idx >= num_batches:
                 break
+        eval_callback()
         if num_batches is not None and batch_idx >= num_batches:
             break
 
-    save_dmp_checkpoint(model, optimizer, rank)
+    # save_dmp_checkpoint(model, optimizer, rank)
 
 
 @gin.configurable
@@ -418,9 +425,9 @@ def eval_loop(
             weights=mt_target_weights.t(),
         )
         batch_idx += 1
-        if output_trace:
-            assert profiler is not None
-            profiler.step()
+        # if output_trace:
+        #     assert profiler is not None
+        #     profiler.step()
         if num_batches is not None and batch_idx >= num_batches:
             break
     metric_logger.compute_and_log()

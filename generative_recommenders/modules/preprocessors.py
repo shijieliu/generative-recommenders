@@ -198,8 +198,13 @@ class ContextualPreprocessor(InputPreprocessor):
         output_seq_embeddings = self._content_embedding_mlp(seq_embeddings)
         if self._action_weights is not None:
             action_embeddings = self._action_encoder(
+                max_seq_len=max_seq_len,
                 seq_lengths=seq_lengths,
+                seq_offsets=torch.ops.fbgemm.asynchronous_complete_cumsum(
+                    seq_lengths
+                ),
                 seq_payloads=seq_payloads,
+                num_targets=num_targets,
             )
             output_seq_embeddings = output_seq_embeddings + self._action_embedding_mlp(
                 action_embeddings
@@ -224,7 +229,7 @@ class ContextualPreprocessor(InputPreprocessor):
             contextual_embeddings = torch.baddbmm(
                 self._batched_contextual_linear_bias.to(
                     contextual_input_embeddings.dtype
-                ),
+                ).view(self._max_contextual_seq_len, 1, -1),
                 contextual_input_embeddings.view(
                     -1, self._max_contextual_seq_len, self._input_embedding_dim
                 ).transpose(0, 1),

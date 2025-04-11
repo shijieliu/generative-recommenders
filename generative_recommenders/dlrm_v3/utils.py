@@ -137,14 +137,14 @@ class MetricsLogger:
 
         self.class_metrics: List[RecMetricComputation] = []
         if all_classification_tasks:
-            self.class_metrics.append(
-                NEMetricComputation(
-                    my_rank=rank,
-                    batch_size=batch_size,
-                    n_tasks=len(all_classification_tasks),
-                    window_size=window_size,
-                ).to(device)
-            )
+            # self.class_metrics.append(
+            #     NEMetricComputation(
+            #         my_rank=rank,
+            #         batch_size=batch_size,
+            #         n_tasks=len(all_classification_tasks),
+            #         window_size=window_size,
+            #     ).to(device)
+            # )
             self.class_metrics.append(
                 AUCMetricComputation(
                     my_rank=rank,
@@ -204,7 +204,7 @@ class MetricsLogger:
                 for i, task_name in enumerate(self.task_names):
                     key = f"metric/{str(computed.metric_prefix) + str(computed.name)}/{task_name}"
                     all_computed_metrics[key] = all_values[i]
-
+        print(f"Step {self.global_step} metrics: {all_computed_metrics}")
         logger.info(f"Step {self.global_step} metrics: {all_computed_metrics}")
         return all_computed_metrics
 
