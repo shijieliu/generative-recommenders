@@ -121,62 +121,62 @@ class ContextualPreprocessor(InputPreprocessor):
         self._contextual_feature_to_min_uih_length: Dict[str, int] = (
             contextual_feature_to_min_uih_length
         )
-        if self._max_contextual_seq_len > 0:
-            std = 1.0 * sqrt(
-                2.0 / float(input_embedding_dim + self._output_embedding_dim)
-            )
-            self._batched_contextual_linear_weights: torch.nn.Parameter = (
-                torch.nn.Parameter(
-                    torch.empty(
-                        (
-                            self._max_contextual_seq_len,
-                            input_embedding_dim,
-                            self._output_embedding_dim,
-                        )
-                    ).normal_(0.0, std)
-                )
-            )
-            self._batched_contextual_linear_bias: torch.nn.Parameter = (
-                torch.nn.Parameter(
-                    torch.empty(
-                        (self._max_contextual_seq_len, self._output_embedding_dim)
-                    ).fill_(0.0)
-                )
-            )
-        hidden_dim = 256
-        self._content_embedding_mlp: torch.nn.Module = torch.nn.Sequential(
-            torch.nn.Linear(
-                in_features=self._input_embedding_dim,
-                out_features=hidden_dim,
-            ),
-            SwishLayerNorm(hidden_dim),
-            torch.nn.Linear(
-                in_features=hidden_dim,
-                out_features=self._output_embedding_dim,
-            ),
-            LayerNorm(self._output_embedding_dim),
-        ).apply(init_mlp_weights_optional_bias)
+        # if self._max_contextual_seq_len > 0:
+        #     std = 1.0 * sqrt(
+        #         2.0 / float(input_embedding_dim + self._output_embedding_dim)
+        #     )
+        #     self._batched_contextual_linear_weights: torch.nn.Parameter = (
+        #         torch.nn.Parameter(
+        #             torch.empty(
+        #                 (
+        #                     self._max_contextual_seq_len,
+        #                     input_embedding_dim,
+        #                     self._output_embedding_dim,
+        #                 )
+        #             ).normal_(0.0, std)
+        #         )
+        #     )
+        #     self._batched_contextual_linear_bias: torch.nn.Parameter = (
+        #         torch.nn.Parameter(
+        #             torch.empty(
+        #                 (self._max_contextual_seq_len, self._output_embedding_dim)
+        #             ).fill_(0.0)
+        #         )
+        #     )
+        # hidden_dim = 256
+        # self._content_embedding_mlp: torch.nn.Module = torch.nn.Sequential(
+        #     torch.nn.Linear(
+        #         in_features=self._input_embedding_dim,
+        #         out_features=hidden_dim,
+        #     ),
+        #     SwishLayerNorm(hidden_dim),
+        #     torch.nn.Linear(
+        #         in_features=hidden_dim,
+        #         out_features=self._output_embedding_dim,
+        #     ),
+        #     LayerNorm(self._output_embedding_dim),
+        # ).apply(init_mlp_weights_optional_bias)
         self._action_feature_name: str = action_feature_name
-        self._action_weights: Optional[List[int]] = action_weights
-        if self._action_weights is not None:
-            self._action_encoder: ActionEncoder = ActionEncoder(
-                action_feature_name=action_feature_name,
-                action_weights=self._action_weights,
-                action_embedding_dim=action_embedding_dim,
-                is_inference=is_inference,
-            )
-            self._action_embedding_mlp: torch.nn.Module = torch.nn.Sequential(
-                torch.nn.Linear(
-                    in_features=self._action_encoder.output_embedding_dim,
-                    out_features=hidden_dim,
-                ),
-                SwishLayerNorm(hidden_dim),
-                torch.nn.Linear(
-                    in_features=hidden_dim,
-                    out_features=self._output_embedding_dim,
-                ),
-                LayerNorm(self._output_embedding_dim),
-            ).apply(init_mlp_weights_optional_bias)
+        # self._action_weights: Optional[List[int]] = action_weights
+        # if self._action_weights is not None:
+        #     self._action_encoder: ActionEncoder = ActionEncoder(
+        #         action_feature_name=action_feature_name,
+        #         action_weights=self._action_weights,
+        #         action_embedding_dim=action_embedding_dim,
+        #         is_inference=is_inference,
+        #     )
+        #     self._action_embedding_mlp: torch.nn.Module = torch.nn.Sequential(
+        #         torch.nn.Linear(
+        #             in_features=self._action_encoder.output_embedding_dim,
+        #             out_features=hidden_dim,
+        #         ),
+        #         SwishLayerNorm(hidden_dim),
+        #         torch.nn.Linear(
+        #             in_features=hidden_dim,
+        #             out_features=self._output_embedding_dim,
+        #         ),
+        #         LayerNorm(self._output_embedding_dim),
+        #     ).apply(init_mlp_weights_optional_bias)
 
     def forward(  # noqa C901
         self,
@@ -195,20 +195,32 @@ class ContextualPreprocessor(InputPreprocessor):
         torch.Tensor,
         Dict[str, torch.Tensor],
     ]:
-        output_seq_embeddings = self._content_embedding_mlp(seq_embeddings)
-        if self._action_weights is not None:
-            action_embeddings = self._action_encoder(
-                max_seq_len=max_seq_len,
-                seq_lengths=seq_lengths,
-                seq_offsets=torch.ops.fbgemm.asynchronous_complete_cumsum(
-                    seq_lengths
-                ),
-                seq_payloads=seq_payloads,
-                num_targets=num_targets,
-            )
-            output_seq_embeddings = output_seq_embeddings + self._action_embedding_mlp(
-                action_embeddings
-            )
+        # output_seq_embeddings = self._content_embedding_mlp(seq_embeddings)
+        # if self._action_weights is not None:
+        #     action_embeddings = seq_payloads[self._action_feature_name]
+        #     print('action_embeddings', action_embeddings.shape)
+        #     action_embeddings = self._action_encoder(
+        #         max_seq_len=max_seq_len,
+        #         seq_lengths=seq_lengths,
+        #         seq_offsets=torch.ops.fbgemm.asynchronous_complete_cumsum(
+        #             seq_lengths
+        #         ),
+        #         seq_payloads=seq_payloads,
+        #         num_targets=num_targets,
+        #     )
+        #     print('seq_embeddings', seq_embeddings.shape)
+        #     print('action_embeddings', action_embeddings.shape)
+        #     seq_embeddings = torch.stack(
+        #         [seq_embeddings, action_embeddings], dim=1
+        #     ).reshape((-1, self._output_embedding_dim))
+        #     print('seq_embeddings', seq_embeddings.shape)
+        #     seq_lengths = seq_lengths * 2
+        #     print('seq_lengths', seq_lengths.sum())
+        output_seq_embeddings = seq_embeddings
+
+        #     output_seq_embeddings = output_seq_embeddings + self._action_embedding_mlp(
+        #         action_embeddings
+        #     )
 
         output_max_seq_len = max_seq_len
         output_seq_lengths = seq_lengths
@@ -219,24 +231,27 @@ class ContextualPreprocessor(InputPreprocessor):
         )
         # concat contextual embeddings
         if self._max_contextual_seq_len > 0:
-            contextual_input_embeddings = get_contextual_input_embeddings(
+            contextual_embeddings = get_contextual_input_embeddings(
                 seq_lengths=seq_lengths,
                 seq_payloads=seq_payloads,
                 contextual_feature_to_max_length=self._contextual_feature_to_max_length,
                 contextual_feature_to_min_uih_length=self._contextual_feature_to_min_uih_length,
                 dtype=seq_embeddings.dtype,
+            ).view(
+                -1, self._max_contextual_seq_len, self._input_embedding_dim
             )
-            contextual_embeddings = torch.baddbmm(
-                self._batched_contextual_linear_bias.to(
-                    contextual_input_embeddings.dtype
-                ).view(self._max_contextual_seq_len, 1, -1),
-                contextual_input_embeddings.view(
-                    -1, self._max_contextual_seq_len, self._input_embedding_dim
-                ).transpose(0, 1),
-                self._batched_contextual_linear_weights.to(
-                    contextual_input_embeddings.dtype
-                ),
-            ).transpose(0, 1)
+
+            # contextual_embeddings = torch.baddbmm(
+            #     self._batched_contextual_linear_bias.to(
+            #         contextual_input_embeddings.dtype
+            #     ).view(self._max_contextual_seq_len, 1, -1),
+            #     contextual_input_embeddings.view(
+            #         -1, self._max_contextual_seq_len, self._input_embedding_dim
+            #     ).transpose(0, 1),
+            #     self._batched_contextual_linear_weights.to(
+            #         contextual_input_embeddings.dtype
+            #     ),
+            # ).transpose(0, 1)
             output_seq_embeddings = concat_2D_jagged(
                 values_left=fx_unwrap_optional_tensor(contextual_embeddings).reshape(
                     -1, self._output_embedding_dim

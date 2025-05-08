@@ -75,6 +75,7 @@ def _main_func(
 
     # dataset = make_dataset
     model, model_configs, embedding_table_configs = make_model()
+    print(model)
     model, optimizer = make_optimizer_and_shard(model=model, device=device)
     # load_dmp_checkpoint(model, optimizer)
     train_dataloader, test_dataloader = make_train_test_dataloaders(
@@ -84,14 +85,14 @@ def _main_func(
     train_metrics = MetricsLogger(
         multitask_configs=model_configs.multitask_configs,
         batch_size=train_dataloader.batch_size,
-        window_size=1000,
+        window_size=1000000000000,
         device=device,
         rank=rank,
     )
     test_metrics = MetricsLogger(
         multitask_configs=model_configs.multitask_configs,
         batch_size=train_dataloader.batch_size,
-        window_size=1000,
+        window_size=1000000000000,
         device=device,
         rank=rank,
     )

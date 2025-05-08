@@ -224,7 +224,7 @@ class STULayer(STU):
         self._output_weight = torch.nn.Parameter(
             torch.empty(
                 (
-                    self._hidden_dim * self._num_heads * 3,
+                    self._hidden_dim * self._num_heads,
                     self._embedding_dim,
                 )
             ),
@@ -343,7 +343,7 @@ class STULayer(STU):
                 group_norm=self._use_group_norm,
                 num_heads=self._num_heads,
                 linear_dim=self._hidden_dim,
-                concat_ux=True,
+                concat_ux=False,
                 training=self.training,
                 # kernel=self.hammer_kernel(),
                 recompute_y_in_backward=self._recompute_y,
@@ -409,7 +409,7 @@ class STULayer(STU):
                 group_norm=self._use_group_norm,
                 num_heads=self._num_heads,
                 linear_dim=self._hidden_dim,
-                concat_ux=True,
+                concat_ux=False,
                 training=self.training,
                 kernel=self.hammer_kernel(),
                 recompute_y_in_backward=self._recompute_y,

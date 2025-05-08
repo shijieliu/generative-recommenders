@@ -227,6 +227,7 @@ class DLRMv3RandomDataset(Dataset):
         self.items_in_memory = {}
 
     def load_query_samples(self, sample_list):
+        raise RuntimeError("not reach")
         max_num_candidates = (
             self._max_num_candidates_inference
             if self._is_inference

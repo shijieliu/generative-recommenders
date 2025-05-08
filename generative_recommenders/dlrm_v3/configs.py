@@ -21,8 +21,8 @@ from generative_recommenders.modules.multitask_module import (
     TaskConfig,
 )
 from torchrec.modules.embedding_configs import DataType, EmbeddingConfig
-
-HSTU_EMBEDDING_DIM = 256
+import torch
+HSTU_EMBEDDING_DIM = 512
 HASH_SIZE = 10_000_000
 
 
@@ -32,12 +32,14 @@ def get_hstu_configs(dataset: str = "debug") -> DlrmHSTUConfig:
         hstu_attn_linear_dim=128,
         hstu_attn_qk_dim=128,
         hstu_attn_num_layers=3,
-        hstu_embedding_table_dim=256,
+        hstu_embedding_table_dim=512,
         hstu_transducer_embedding_dim=512,
-        hstu_group_norm=True,
+        hstu_group_norm=False,
         hstu_input_dropout_ratio=0.2,
         hstu_linear_dropout_rate=0.1,
         causal_multitask_weights=0.2,
+        enable_postprocessor=False,
+        use_layer_norm_postprocessor=True,
     )
     if "movielens" in dataset:
         hstu_config.user_embedding_feature_names = [

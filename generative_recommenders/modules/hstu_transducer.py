@@ -123,7 +123,7 @@ class HSTUTransducer(HammerModule):
                     max_seq_len=output_max_seq_len,
                     seq_lengths=output_seq_lengths,
                     seq_offsets=output_seq_offsets,
-                    seq_timestamps=output_seq_timestamps,
+                    seq_timestamps=None,
                     seq_embeddings=output_seq_embeddings,
                     num_targets=(
                         None if self._listwise_training else output_num_targets

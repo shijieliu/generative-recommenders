@@ -54,9 +54,10 @@ class ActionEncoder(HammerModule):
                 + [x[1] for x in self._watchtime_to_action_thresholds_and_weights]
             ),
         )
-        self._num_action_types: int = len(action_weights) + len(
-            self._watchtime_to_action_thresholds_and_weights
-        )
+        # self._num_action_types: int = int(action_weights) + len(
+        #     self._watchtime_to_action_thresholds_and_weights
+        # )
+        self._num_action_types: int = 256
         self._action_embedding_dim = action_embedding_dim
         self._action_embedding_table: torch.nn.Parameter = torch.nn.Parameter(
             torch.empty((self._num_action_types, action_embedding_dim)).normal_(
@@ -82,12 +83,13 @@ class ActionEncoder(HammerModule):
         num_targets: torch.Tensor,
     ) -> torch.Tensor:
         seq_actions = seq_payloads[self._action_feature_name]
-        if len(self._watchtime_to_action_thresholds_and_weights) > 0:
-            watchtimes = seq_payloads[self._watchtime_feature_name]
-            for threshold, weight in self._watchtime_to_action_thresholds_and_weights:
-                seq_actions = torch.bitwise_or(
-                    seq_actions, (watchtimes >= threshold).to(torch.int64) * weight
-                )
+        return self._action_embedding_table[seq_actions]
+        # if len(self._watchtime_to_action_thresholds_and_weights) > 0:
+        #     watchtimes = seq_payloads[self._watchtime_feature_name]
+        #     for threshold, weight in self._watchtime_to_action_thresholds_and_weights:
+        #         seq_actions = torch.bitwise_or(
+        #             seq_actions, (watchtimes >= threshold).to(torch.int64) * weight
+        #         )
         exploded_actions = (
             torch.bitwise_and(
                 seq_actions.unsqueeze(-1), self._combined_action_weights.unsqueeze(0)

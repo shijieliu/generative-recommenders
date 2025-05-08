@@ -70,11 +70,11 @@ class MultitaskModule(HammerModule):
 def _compute_pred_and_logits(
     prediction_module: torch.nn.Module,
     encoded_user_embeddings: torch.Tensor,
-    item_embeddings: torch.Tensor,
+    # item_embeddings: torch.Tensor,
     task_offsets: List[int],
     has_multiple_task_types: bool,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
-    mt_logits = prediction_module(encoded_user_embeddings * item_embeddings).transpose(
+    mt_logits = prediction_module(encoded_user_embeddings).transpose(
         0, 1
     )
     mt_preds_list: List[torch.Tensor] = []
@@ -100,7 +100,6 @@ def _compute_pred_and_logits(
         mt_preds: torch.Tensor = torch.concat(mt_preds_list, dim=0)
     else:
         mt_preds: torch.Tensor = mt_preds_list[0]
-
     return mt_preds, mt_logits
 
 
@@ -175,16 +174,17 @@ def _compute_loss(
                         ],
                         reduction="none",
                     )
-                    * mt_weights[
-                        task_offsets[task_type] : task_offsets[task_type + 1],
-                        :,
-                    ]
+                    # * mt_weights[
+                    #     task_offsets[task_type] : task_offsets[task_type + 1],
+                    #     :,
+                    # ]
                 )
 
     if has_multiple_task_types:
         mt_losses = torch.concat(mt_losses_list, dim=0)
     else:
         mt_losses = mt_losses_list[0]
+    return mt_losses.sum(-1) / mt_weights.sum(-1).clamp(min=1.0)
     mt_losses = (
         mt_losses.sum(-1) / mt_weights.sum(-1).clamp(min=1.0) * causal_multitask_weights
     )
@@ -221,7 +221,7 @@ class DefaultMultitaskModule(MultitaskModule):
     def forward(
         self,
         encoded_user_embeddings: torch.Tensor,
-        item_embeddings: torch.Tensor,
+        # item_embeddings: torch.Tensor,
         supervision_labels: Dict[str, torch.Tensor],
         supervision_weights: Dict[str, torch.Tensor],
     ) -> Tuple[
@@ -233,7 +233,7 @@ class DefaultMultitaskModule(MultitaskModule):
         orig_dtype = encoded_user_embeddings.dtype
         if not self._is_inference:
             encoded_user_embeddings = encoded_user_embeddings.to(self._training_dtype)
-            item_embeddings = item_embeddings.to(self._training_dtype)
+            # item_embeddings = item_embeddings.to(self._training_dtype)
 
         with torch.autocast(
             "cuda",
@@ -243,7 +243,7 @@ class DefaultMultitaskModule(MultitaskModule):
             mt_preds, mt_logits = _compute_pred_and_logits(
                 prediction_module=self._prediction_module,
                 encoded_user_embeddings=encoded_user_embeddings,
-                item_embeddings=item_embeddings,
+                # item_embeddings=item_embeddings,
                 task_offsets=self._task_offsets,
                 has_multiple_task_types=self._has_multiple_task_types,
             )

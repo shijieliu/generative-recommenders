@@ -140,7 +140,7 @@ class DlrmHSTU(HammerModule):
             embedding_dim=hstu_configs.hstu_transducer_embedding_dim,
             prediction_fn=lambda in_dim, num_tasks: torch.nn.Sequential(
                 torch.nn.Linear(in_features=in_dim, out_features=512),
-                SwishLayerNorm(512),
+                torch.nn.ReLU(),
                 torch.nn.Linear(in_features=512, out_features=num_tasks),
             ).apply(init_mlp_weights_optional_bias),
             causal_multitask_weights=hstu_configs.causal_multitask_weights,
@@ -153,7 +153,7 @@ class DlrmHSTU(HammerModule):
             output_embedding_dim=hstu_configs.hstu_transducer_embedding_dim,
             contextual_feature_to_max_length=hstu_configs.contextual_feature_to_max_length,
             contextual_feature_to_min_uih_length=hstu_configs.contextual_feature_to_min_uih_length,
-            action_embedding_dim=8,
+            action_embedding_dim=hstu_configs.hstu_transducer_embedding_dim,
             action_feature_name=self._hstu_configs.uih_weight_feature_name,
             action_weights=self._hstu_configs.action_weights,
             is_inference=is_inference,
@@ -165,7 +165,7 @@ class DlrmHSTU(HammerModule):
             num_time_buckets=2048,
             embedding_dim=hstu_configs.hstu_transducer_embedding_dim,
             is_inference=self._is_inference,
-            use_time_encoding=True,
+            use_time_encoding=False,
         )
 
         if hstu_configs.enable_postprocessor:
@@ -227,20 +227,20 @@ class DlrmHSTU(HammerModule):
             listwise=False,
         )
 
-        # item embeddings
-        self._item_embedding_mlp: torch.nn.Module = torch.nn.Sequential(
-            torch.nn.Linear(
-                in_features=hstu_configs.hstu_embedding_table_dim
-                * len(self._hstu_configs.item_embedding_feature_names),
-                out_features=512,
-            ),
-            SwishLayerNorm(512),
-            torch.nn.Linear(
-                in_features=512,
-                out_features=hstu_configs.hstu_transducer_embedding_dim,
-            ),
-            LayerNorm(hstu_configs.hstu_transducer_embedding_dim),
-        ).apply(init_mlp_weights_optional_bias)
+        # # item embeddings
+        # self._item_embedding_mlp: torch.nn.Module = torch.nn.Sequential(
+        #     torch.nn.Linear(
+        #         in_features=hstu_configs.hstu_embedding_table_dim
+        #         * len(self._hstu_configs.item_embedding_feature_names),
+        #         out_features=512,
+        #     ),
+        #     SwishLayerNorm(512),
+        #     torch.nn.Linear(
+        #         in_features=512,
+        #         out_features=hstu_configs.hstu_transducer_embedding_dim,
+        #     ),
+        #     LayerNorm(hstu_configs.hstu_transducer_embedding_dim),
+        # ).apply(init_mlp_weights_optional_bias)
 
     def _construct_payload(
         self,
@@ -301,21 +301,21 @@ class DlrmHSTU(HammerModule):
 
         return candidates_user_embeddings
 
-    def _item_forward(
-        self,
-        seq_embeddings: Dict[str, SequenceEmbedding],
-    ) -> torch.Tensor:  # [L, D]
-        all_embeddings = [
-            torch.cat(
-                [
-                    seq_embeddings[name].embedding
-                    for name in self._hstu_configs.item_embedding_feature_names
-                ],
-                dim=-1,
-            )
-        ]
-        item_embeddings = self._item_embedding_mlp(torch.cat(all_embeddings, dim=-1))
-        return item_embeddings
+    # def _item_forward(
+    #     self,
+    #     seq_embeddings: Dict[str, SequenceEmbedding],
+    # ) -> torch.Tensor:  # [L, D]
+    #     all_embeddings = [
+    #         torch.cat(
+    #             [
+    #                 seq_embeddings[name].embedding
+    #                 for name in self._hstu_configs.item_embedding_feature_names
+    #             ],
+    #             dim=-1,
+    #         )
+    #     ]
+    #     item_embeddings = self._item_embedding_mlp(torch.cat(all_embeddings, dim=-1))
+    #     return item_embeddings
 
     def preprocess(
         self,
@@ -456,10 +456,10 @@ class DlrmHSTU(HammerModule):
                     ),
                 )
 
-        with record_function("## item_forward ##"):
-            candidates_item_embeddings = self._item_forward(
-                seq_embeddings,
-            )
+        # with record_function("## item_forward ##"):
+        #     candidates_item_embeddings = self._item_forward(
+        #         seq_embeddings,
+        #     )
         with record_function("## user_forward ##"):
             candidates_user_embeddings = self._user_forward(
                 payload_features,
@@ -481,7 +481,6 @@ class DlrmHSTU(HammerModule):
             mt_target_preds, mt_target_labels, mt_target_weights, mt_losses = (
                 self._multitask_module(
                     encoded_user_embeddings=candidates_user_embeddings,
-                    item_embeddings=candidates_item_embeddings,
                     supervision_labels=supervision_labels,
                     supervision_weights=supervision_weights,
                 )
@@ -494,7 +493,7 @@ class DlrmHSTU(HammerModule):
 
         return (
             candidates_user_embeddings,
-            candidates_item_embeddings,
+            None,
             aux_losses,
             mt_target_preds,
             mt_target_labels,

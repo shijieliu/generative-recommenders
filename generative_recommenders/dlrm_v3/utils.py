@@ -198,6 +198,14 @@ class MetricsLogger:
         all_computed_metrics = {}
 
         for metric in self.all_metrics:
+            predictions = torch.concat(metric.predictions, dim=0)
+            print('predictions', predictions.shape, predictions[:, 0])
+            labels = torch.concat(metric.labels, dim=0)
+            print('labels', labels.shape, labels[:, 0])
+            weights = torch.concat(metric.weights, dim=0)
+            print('weights', weights.shape, weights[:, 0])
+            # target = torch.concat(metric.target, dim=0)
+            # print('target', target.shape, target[:, 0])
             computed_metrics = metric.compute()
             for computed in computed_metrics:
                 all_values = computed.value.cpu()
@@ -213,23 +221,26 @@ class MetricsLogger:
     ) -> Dict[str, float]:
         assert self.tb_logger is not None
         all_computed_metrics = self.compute()
-        for k, v in all_computed_metrics.items():
-            self.tb_logger.add_scalar(  # pyre-ignore [16]
-                k,
-                v,
-                global_step=self.global_step,
-            )
+        # for k, v in all_computed_metrics.items():
+        #     self.tb_logger.add_scalar(  # pyre-ignore [16]
+        #         k,
+        #         v,
+        #         global_step=self.global_step,
+        #     )
 
-        if additional_logs is not None:
-            for tag, data in additional_logs.items():
-                for data_name, data_value in data.items():
-                    self.tb_logger.add_scalar(
-                        f"{tag}/{data_name}",
-                        data_value.detach().clone().cpu(),
-                        global_step=self.global_step,
-                    )
+        # if additional_logs is not None:
+        #     for tag, data in additional_logs.items():
+        #         for data_name, data_value in data.items():
+        #             self.tb_logger.add_scalar(
+        #                 f"{tag}/{data_name}",
+        #                 data_value.detach().clone().cpu(),
+        #                 global_step=self.global_step,
+        #             )
         return all_computed_metrics
 
+    def reset(self):
+        for metric in self.all_metrics:
+            metric.reset()
 
 # the datasets we support
 SUPPORTED_DATASETS = ["debug", "movielens-1m", "movielens-20m", "kuairand-1k"]

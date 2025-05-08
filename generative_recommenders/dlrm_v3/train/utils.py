@@ -242,7 +242,7 @@ def make_optimizer_and_shard(
     all_optimizers = []
     all_params = {}
     non_fused_sparse_params = {}
-    for k, v in in_backward_optimizer_filter(module.named_parameters()):
+    for k, v in in_backward_optimizer_filter(model.named_parameters()):
         if v.requires_grad:
             if isinstance(v, ShardedTensor):
                 non_fused_sparse_params[k] = v
@@ -298,7 +298,7 @@ def make_train_test_dataloaders(
     )
     total_items = dataset.dataset.get_item_count()
     train_size = round(train_split_percentage * total_items)
-
+    
     train_set = torch.utils.data.Subset(dataset, range(train_size))
     test_set = torch.utils.data.Subset(dataset, range(train_size, total_items))
     print('total_items', total_items)
@@ -312,7 +312,7 @@ def make_train_test_dataloaders(
         drop_last=True,
         num_workers=num_workers,
         prefetch_factor=prefetch_factor,
-        sampler=DistributedSampler(train_set),
+        # sampler=DistributedSampler(train_set),
     )
     test_dataloader = DataLoader(
         dataset=test_set,
@@ -322,7 +322,7 @@ def make_train_test_dataloaders(
         drop_last=True,
         num_workers=num_workers,
         prefetch_factor=prefetch_factor,
-        sampler=DistributedSampler(test_set),
+        # sampler=DistributedSampler(test_set),
     )
     return train_dataloader, test_dataloader
 
@@ -351,7 +351,9 @@ def train_loop(
     eval_callback()
     for _ in range(num_epochs):
         model = model.train()
+        iter_count = 0
         for sample in dataloader:
+            # print('sample', sample.uih_features_kjt, sample.candidates_features_kjt)
             sample.to(device)
             (
                 _,
@@ -364,20 +366,27 @@ def train_loop(
                 sample.uih_features_kjt,
                 sample.candidates_features_kjt,
             )
+            losses = sum(aux_losses.values())
+            print('losses', iter_count, losses)
+            # print('mt_target_preds', mt_target_preds, mt_target_preds.shape)
+            # print('mt_target_labels', mt_target_labels, mt_target_labels.shape)
+            # print('mt_target_weights', mt_target_weights, mt_target_weights.shape)
+            # raise
+            iter_count += 1
             # pyre-ignore
-            sum(aux_losses.values()).backward()
+            losses.backward()
             optimizer.step()
-            metric_logger.update(
-                predictions=mt_target_preds,
-                labels=mt_target_labels,
-                weights=mt_target_weights,
-            )
-            if batch_idx % metric_log_frequency == 0:
-                metric_logger.compute_and_log(
-                    additional_logs={
-                        "losses": aux_losses,
-                    }
-                )
+            # metric_logger.update(
+            #     predictions=mt_target_preds,
+            #     labels=mt_target_labels,
+            #     weights=mt_target_weights,
+            # )
+            # if batch_idx % metric_log_frequency == 0:
+            #     metric_logger.compute_and_log(
+            #         additional_logs={
+            #             "losses": aux_losses,
+            #         }
+            #     )
             batch_idx += 1
             # if output_trace:
             #     assert profiler is not None
@@ -385,11 +394,14 @@ def train_loop(
             if num_batches is not None and batch_idx >= num_batches:
                 break
         eval_callback()
+        raise
         if num_batches is not None and batch_idx >= num_batches:
             break
 
     # save_dmp_checkpoint(model, optimizer, rank)
 
+import torchmetrics.classification as classification_metrics
+from torchrec.metrics.auc import compute_auc
 
 @gin.configurable
 def eval_loop(
@@ -405,7 +417,10 @@ def eval_loop(
     model = model.eval()
     batch_idx: int = 0
     profiler = Profiler(rank, active=10) if output_trace else None
-
+    # Set torch print precision to show more decimal places
+    torch.set_printoptions(profile='full')
+    metric = classification_metrics.AUROC(task='binary')
+    metric_logger.reset()
     for sample in dataloader:
         sample.to(device)
         (
@@ -420,9 +435,14 @@ def eval_loop(
             sample.candidates_features_kjt,
         )
         metric_logger.update(
-            predictions=mt_target_preds.t(),
-            labels=mt_target_labels.t(),
-            weights=mt_target_weights.t(),
+            predictions=mt_target_preds,
+            labels=mt_target_labels,
+            weights=mt_target_weights,
+        )
+        print('mt_target_preds', mt_target_preds.shape)
+        metric.update(
+            mt_target_preds.t()[:, 0], 
+            mt_target_labels.t()[:, 0],
         )
         batch_idx += 1
         # if output_trace:
@@ -431,5 +451,21 @@ def eval_loop(
         if num_batches is not None and batch_idx >= num_batches:
             break
     metric_logger.compute_and_log()
-    for k, v in metric_logger.compute().items():
-        print(f"{k}: {v}")
+    preds = torch.concat(metric.preds, dim=0)
+    target = torch.concat(metric.target, dim=0)
+    print('metric.compute()', preds, preds.shape, target, target.shape, target.max())
+    ret_dict = metric.compute()
+    print('ret_dict', ret_dict)
+
+    auc = compute_auc(
+        n_tasks=1,
+        predictions=[preds.t().view(1, -1)],
+        labels=[target.t().view(1, -1)],
+        weights=[torch.ones_like(target.t()).view(1, -1)],
+    )
+    print('torchrec auc', auc)
+    from sklearn import metrics
+    pred = preds.detach().cpu().numpy()
+    targ = target.detach().cpu().numpy()
+    print('auc', metrics.roc_auc_score(targ, pred))
+    raise
