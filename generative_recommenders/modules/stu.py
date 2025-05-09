@@ -318,7 +318,7 @@ class STULayer(STU):
                 recompute_normed_x_in_backward=self._recompute_normed_x,
                 sort_by_length=self._sort_by_length,
                 prefill=kv_caching_lengths is not None,
-                kernel=self.hammer_kernel(),
+                # kernel=self.hammer_kernel(),
             )
 
         self.update_kv_cache(
@@ -345,7 +345,7 @@ class STULayer(STU):
                 linear_dim=self._hidden_dim,
                 concat_ux=True,
                 training=self.training,
-                kernel=self.hammer_kernel(),
+                # kernel=self.hammer_kernel(),
                 recompute_y_in_backward=self._recompute_y,
             )
 

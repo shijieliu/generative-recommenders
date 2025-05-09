@@ -104,7 +104,7 @@ def hstu_compute_output(
     concat_ux: bool,
     group_norm: bool,
     recompute_y_in_backward: bool,
-    kernel: HammerKernel = HammerKernel.PYTORCH,
+    kernel: HammerKernel = HammerKernel.TRITON,
 ) -> torch.Tensor:
     if kernel == HammerKernel.TRITON:
         return triton_hstu_compute_output(
@@ -189,7 +189,7 @@ def hstu_preprocess_and_attention(
     recompute_normed_x_in_backward: bool,
     sort_by_length: bool,
     prefill: bool = False,
-    kernel: HammerKernel = HammerKernel.PYTORCH,
+    kernel: HammerKernel = HammerKernel.TRITON,
 ) -> Tuple[torch.Tensor, torch.Tensor, Optional[torch.Tensor], Optional[torch.Tensor]]:
     if not is_fx_tracing():
         torch._assert(max_seq_len > 0, "max_seq_len must be larger than 0")

@@ -11,7 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import warnings
 
+# Ignore all FutureWarnings
+warnings.filterwarnings("ignore", category=FutureWarning)
+warnings.filterwarnings("ignore", category=SyntaxWarning)
 # pyre-strict
 import argparse
 import logging
@@ -53,6 +57,11 @@ def _main_func(
     gin_file: str,
     mode: str,
 ) -> None:
+    import random
+    import numpy as np
+    random.seed(1234)
+    np.random.seed(1234)
+    torch.manual_seed(1234)
     device = torch.device(f"cuda:{rank}")
     logger.info(f"rank: {rank}, world_size: {world_size}, device: {device}")
     setup(
@@ -66,37 +75,56 @@ def _main_func(
 
     # dataset = make_dataset
     model, model_configs, embedding_table_configs = make_model()
+    print(model)
     model, optimizer = make_optimizer_and_shard(model=model, device=device)
-    load_dmp_checkpoint(model, optimizer)
+    # load_dmp_checkpoint(model, optimizer)
     train_dataloader, test_dataloader = make_train_test_dataloaders(
         hstu_config=model_configs,
         embedding_table_configs=embedding_table_configs,
     )
-    metrics = MetricsLogger(
+    train_metrics = MetricsLogger(
         multitask_configs=model_configs.multitask_configs,
         batch_size=train_dataloader.batch_size,
-        window_size=1000,
+        window_size=10000,
         device=device,
         rank=rank,
     )
+    test_metrics = MetricsLogger(
+        multitask_configs=model_configs.multitask_configs,
+        batch_size=train_dataloader.batch_size,
+        window_size=1000000000000,
+        device=device,
+        rank=rank,
+    )
+    
+    def eval_callback():
+        eval_loop(
+            rank=rank,
+            model=model,
+            dataloader=test_dataloader,
+            metric_logger=test_metrics,
+            device=device,
+        )
 
     # train loop
     try:
         if mode == "train":
+            
             train_loop(
                 rank=rank,
                 model=model,
                 dataloader=train_dataloader,
                 optimizer=optimizer,
-                metric_logger=metrics,
+                metric_logger=train_metrics,
                 device=device,
+                eval_callback=eval_callback,
             )
         elif mode == "eval":
             eval_loop(
                 rank=rank,
                 model=model,
                 dataloader=test_dataloader,
-                metric_logger=metrics,
+                metric_logger=test_metrics,
                 device=device,
             )
     except Exception as e:

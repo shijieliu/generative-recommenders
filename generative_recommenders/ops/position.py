@@ -78,24 +78,24 @@ def add_positional_embeddings(
         _, D2 = position_embeddings_weight.shape
         torch._assert(D2 == D, "wrong dense shape[1]")
 
-    if kernel == HammerKernel.TRITON:
-        return triton_add_position_embeddings(
-            jagged=seq_embeddings,
-            jagged_offsets=seq_offsets,
-            high_inds=high_inds,
-            max_seq_len=max_seq_len,
-            dense=position_embeddings_weight,
-            scale=alpha,
-        )
-    else:
-        return pytorch_add_position_embeddings(
-            jagged=seq_embeddings,
-            jagged_offsets=seq_offsets,
-            high_inds=high_inds,
-            max_seq_len=max_seq_len,
-            dense=position_embeddings_weight,
-            scale=alpha,
-        )
+    # if kernel == HammerKernel.TRITON:
+    return triton_add_position_embeddings(
+        jagged=seq_embeddings,
+        jagged_offsets=seq_offsets,
+        high_inds=high_inds,
+        max_seq_len=max_seq_len,
+        dense=position_embeddings_weight,
+        scale=alpha,
+    )
+    # else:
+    #     return pytorch_add_position_embeddings(
+    #         jagged=seq_embeddings,
+    #         jagged_offsets=seq_offsets,
+    #         high_inds=high_inds,
+    #         max_seq_len=max_seq_len,
+    #         dense=position_embeddings_weight,
+    #         scale=alpha,
+    #     )
 
 
 def add_timestamp_positional_embeddings(

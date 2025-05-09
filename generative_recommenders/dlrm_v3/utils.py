@@ -204,7 +204,7 @@ class MetricsLogger:
                 for i, task_name in enumerate(self.task_names):
                     key = f"metric/{str(computed.metric_prefix) + str(computed.name)}/{task_name}"
                     all_computed_metrics[key] = all_values[i]
-
+        print(f"Step {self.global_step} metrics: {all_computed_metrics}")
         logger.info(f"Step {self.global_step} metrics: {all_computed_metrics}")
         return all_computed_metrics
 
@@ -213,23 +213,26 @@ class MetricsLogger:
     ) -> Dict[str, float]:
         assert self.tb_logger is not None
         all_computed_metrics = self.compute()
-        for k, v in all_computed_metrics.items():
-            self.tb_logger.add_scalar(  # pyre-ignore [16]
-                k,
-                v,
-                global_step=self.global_step,
-            )
+        # for k, v in all_computed_metrics.items():
+        #     self.tb_logger.add_scalar(  # pyre-ignore [16]
+        #         k,
+        #         v,
+        #         global_step=self.global_step,
+        #     )
 
-        if additional_logs is not None:
-            for tag, data in additional_logs.items():
-                for data_name, data_value in data.items():
-                    self.tb_logger.add_scalar(
-                        f"{tag}/{data_name}",
-                        data_value.detach().clone().cpu(),
-                        global_step=self.global_step,
-                    )
+        # if additional_logs is not None:
+        #     for tag, data in additional_logs.items():
+        #         for data_name, data_value in data.items():
+        #             self.tb_logger.add_scalar(
+        #                 f"{tag}/{data_name}",
+        #                 data_value.detach().clone().cpu(),
+        #                 global_step=self.global_step,
+        #             )
         return all_computed_metrics
 
+    def reset(self):
+        for metric in self.all_metrics:
+            metric.reset()
 
 # the datasets we support
 SUPPORTED_DATASETS = ["debug", "movielens-1m", "movielens-20m", "kuairand-1k"]
