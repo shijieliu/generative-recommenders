@@ -29,6 +29,7 @@ SCALAR_TYPES: dict[str, str] = {
 
 # Stable ABI override: str → "std::string" instead of "at::string".
 PY_TYPES_TO_CPP_TYPES: dict[type[Any], str] = {
+    bool: "bool",
     int: "int64_t",
     str: "std::string",
     float: "double",

@@ -66,6 +66,9 @@ def constexpr(s: SignatureElement) -> ConstantValue:
     if expr is None:
         return expr
 
+    if isinstance(expr, bool):
+        return expr
+
     try:
         ret = int(expr)
         return ret
@@ -77,8 +80,6 @@ def constexpr(s: SignatureElement) -> ConstantValue:
     except (ValueError, TypeError):
         pass
 
-    if isinstance(expr, bool):
-        return expr
     if isinstance(expr, str) and expr not in CTYPES and not expr.startswith("*"):
         return expr
     return None
@@ -187,7 +188,7 @@ def collect_constraints(signature: list[SignatureElement]) -> SignatureConstrain
         value = s[1] if isinstance(s, tuple) else s
 
         # Check divisibility and equality constraints
-        if isinstance(value, int):
+        if isinstance(value, int) and not isinstance(value, bool):
             if value % 16 == 0:
                 divisible_by_16.add(i)
             if value % 8 == 0:

@@ -352,7 +352,7 @@ def _save_aott_dense_module(
     from generative_recommenders.ops.triton_aot.transform.transform_kernels import (
         transform_kernels,
     )
-    from tgif.fx.tgif_tracer import TGIFTracer
+    from generative_recommenders.ops.triton_aot.tgif_compat import TGIFTracer
 
     max_uih_len = int(dense_inputs[3].max().item())
     max_num_candidates = int(dense_inputs[4].max().item())

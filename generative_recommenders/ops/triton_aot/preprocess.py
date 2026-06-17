@@ -8,7 +8,7 @@ Preprocessing utilities for triton_aot models before AOT compilation.
 
 import logging
 
-from tgif.fx.tgif_tracer import TGIFTracer
+from generative_recommenders.ops.triton_aot.tgif_compat import TGIFTracer
 from torch.fx import GraphModule
 
 logger: logging.Logger = logging.getLogger(__name__)

@@ -9,6 +9,7 @@ shared between NVIDIA and AMD extension builders.
 import logging
 import os
 import re
+import shutil
 
 # @manual=//generative_recommenders/ops/triton_aot/build:torch_cpp_headers
 import pkg_resources
@@ -18,8 +19,19 @@ from setuptools.command.build_ext import build_ext
 from torch.utils import cpp_extension
 from torch.utils.cpp_extension import CUDA_HOME
 
+def _default_compiler_path() -> str:
+    return os.environ.get("CXX") or shutil.which("g++") or shutil.which("c++") or "g++"
+
+
 # TODO investigate if other lib path can be found through build_paths
-from triton.fb.build import build_paths  # @manual=//triton/fb:build
+try:
+    from triton.fb.build import build_paths  # @manual=//triton/fb:build
+except ModuleNotFoundError:
+
+    class _LocalBuildPaths:
+        cc: str = _default_compiler_path()
+
+    build_paths = _LocalBuildPaths()
 
 
 logger: logging.Logger = logging.getLogger(__name__)
@@ -184,17 +196,24 @@ class ExtensionBuilder:
             )
         return result
 
+    def get_torch_library_dirs(self) -> list[str]:
+        """Return torch library directories for C++ extension linking."""
+        return list(cpp_extension.library_paths(self.get_torch_device_type()))
+
     def get_libraries(self) -> list[str]:
-        """Return CUDA libraries to link against."""
-        return ["cuda"]
+        """Return torch and CUDA libraries to link against."""
+        libraries = ["c10", "torch", "torch_cpu"]
+        if self.get_torch_device_type() == "cuda":
+            libraries.extend(["c10_cuda", "torch_cuda"])
+        libraries.append("cuda")
+        return libraries
 
     def get_extra_compile_args(self) -> list[str]:
-        """Return compiler arguments, with verbose flag for distutils mode."""
+        """Return compiler arguments for extension builds."""
         args = [
             f"-std={CPP_STANDARD}",
             "-fPIC",  # Position Independent Code, required for shared libraries
             "-DUSE_CUDA",  # Makes shim.h CUDA declarations visible
-            "-v",  # Verbose compiler output to help debug compilation issues
         ]
         return args
 
@@ -221,15 +240,26 @@ class ExtensionBuilder:
         device_type = self.get_torch_device_type()
         include_dirs = list(cpp_extension.include_paths(device_type))
 
-        # Meta: bundled torch headers via pkg_resources
-        bundled_headers_path = pkg_resources.resource_filename(
-            BUNDLED_HEADERS_PACKAGE, BUNDLED_HEADERS_RESOURCE
-        )
-        if not os.path.isdir(bundled_headers_path):
-            raise RuntimeError(
-                f"Bundled torch headers not found at {bundled_headers_path}. "
-                f"Ensure {BUNDLED_HEADERS_PACKAGE}:{BUNDLED_HEADERS_RESOURCE} is in deps."
+        # Meta: bundled torch headers via pkg_resources. OSS/container runs can
+        # rely on torch's installed headers from cpp_extension.include_paths().
+        try:
+            bundled_headers_path = pkg_resources.resource_filename(
+                BUNDLED_HEADERS_PACKAGE, BUNDLED_HEADERS_RESOURCE
             )
+        except (ModuleNotFoundError, TypeError, FileNotFoundError) as exc:
+            logger.warning(
+                "Bundled torch headers are unavailable (%s); using installed "
+                "torch include paths only.",
+                exc,
+            )
+            return include_dirs
+        if not os.path.isdir(bundled_headers_path):
+            logger.warning(
+                "Bundled torch headers not found at %s; using installed torch "
+                "include paths only.",
+                bundled_headers_path,
+            )
+            return include_dirs
 
         include_dirs.append(bundled_headers_path)
 
@@ -295,6 +325,7 @@ class ExtensionBuilder:
         gpu_include_dirs = self.get_gpu_include_dirs()
         gpu_lib_dirs = self.get_gpu_library_dirs()
         torch_include_dirs = self.get_torch_include_dirs()
+        torch_lib_dirs = self.get_torch_library_dirs()
         libraries = self.get_libraries()
         extra_compile_args = self.get_extra_compile_args()
 
@@ -302,8 +333,9 @@ class ExtensionBuilder:
             name=self.ext_name,
             sources=[cpp_file, torch_op_file, embedded_cubin_cpp],
             include_dirs=gpu_include_dirs + torch_include_dirs,
-            library_dirs=gpu_lib_dirs,
+            library_dirs=gpu_lib_dirs + torch_lib_dirs,
             libraries=libraries,
+            runtime_library_dirs=torch_lib_dirs,
             extra_compile_args=extra_compile_args,
             language="c++",
         )

@@ -173,7 +173,11 @@ def gen_compile_arg(
             new_signature[param] = "constexpr"
 
     # parse_attr("D") returns a fresh [["tt.divisibility", 16]] each call.
-    new_attrs = {(idx,): BaseBackend.parse_attr("D") for idx in spec.divisible_by_16}
+    new_attrs = {
+        (idx,): BaseBackend.parse_attr("D")
+        for idx in spec.divisible_by_16
+        if idx in spec.signature
+    }
 
     return (
         ASTSource(
